@@ -1,0 +1,6 @@
+pydantic>=2.5
+python-dotenv>=1.0
+rapidfuzz>=3.5
+# Windows não traz base de fusos horários; necessário para zoneinfo
+tzdata>=2024.1
+pytest>=8.0

@@ -1,0 +1,47 @@
+"""Fixtures: banco SQLite gerado a partir dos CSVs reais, em pasta temporária."""
+from __future__ import annotations
+
+import shutil
+import sqlite3
+
+import pytest
+
+from app.database.connection import get_connection
+from app.database.seed import seed_database
+
+
+@pytest.fixture(scope="session")
+def db_path(tmp_path_factory):
+    path = tmp_path_factory.mktemp("db") / "emporio.db"
+    seed_database(db_path=path)
+    return path
+
+
+@pytest.fixture()
+def conn(db_path):
+    connection = get_connection(db_path)
+    yield connection
+    connection.close()
+
+
+@pytest.fixture()
+def mutable_conn(db_path, tmp_path):
+    """Cópia do banco para testes que alteram dados."""
+    copy = tmp_path / "copy.db"
+    shutil.copy(db_path, copy)
+    connection = get_connection(copy)
+    yield connection
+    connection.close()
+
+
+# Dados de verificação reais da base (clientes dos pedidos usados nos testes)
+CUSTOMERS = {
+    # order_id: (e-mail, telefone)
+    1: ("pedro.oliveira@jmail.com", "(67) 98432-1098"),   # entregue, PIX
+    8: ("anacarol.ferreira@coldmail.com", "(67) 99654-7821"),  # enviado
+}
+
+
+@pytest.fixture()
+def customers():
+    return CUSTOMERS
