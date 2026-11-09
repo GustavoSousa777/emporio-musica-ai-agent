@@ -1,4 +1,3 @@
-"""Ferramentas do agente: argumentos validados, serviços chamados, erros tratados."""
 from __future__ import annotations
 
 import json

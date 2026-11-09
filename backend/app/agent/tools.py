@@ -1,11 +1,3 @@
-"""Ferramentas (function calling) que o agente pode chamar.
-
-Cada ferramenta é uma função fina sobre os serviços determinísticos de app/services
-(ou sobre o RAG). Os argumentos são validados com Pydantic, e o mesmo modelo gera o
-JSON Schema enviado ao Gemini, então não há duas definições para manter em sincronia.
-
-O LLM nunca escreve SQL: só escolhe a ferramenta e os argumentos.
-"""
 from __future__ import annotations
 
 import logging
@@ -238,9 +230,6 @@ _ALLOWED_SCHEMA_KEYS = {"type", "description", "enum", "properties", "required",
 
 def clean_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """Reduz o JSON Schema do Pydantic ao subconjunto aceito pelo Gemini.
-
-    Remove title/default, transforma `X | None` em `X` (campo opcional = fora de `required`)
-    e converte `gt` em minimum.
     """
 
     def convert(node: dict[str, Any]) -> dict[str, Any]:

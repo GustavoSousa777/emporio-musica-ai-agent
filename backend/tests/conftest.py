@@ -1,4 +1,3 @@
-"""Fixtures: banco SQLite gerado a partir dos CSVs reais, em pasta temporária."""
 from __future__ import annotations
 
 import shutil
@@ -47,10 +46,9 @@ def customers():
     return CUSTOMERS
 
 
-# --- Fixtures do RAG e do agente (Etapas 3 e 4) ------------------------------------------
+
 @pytest.fixture(scope="session")
-def lexical_index():
-    """Índice das políticas só com BM25: não chama API nem precisa de chave."""
+def lexical_index():   
     from app.rag.retriever import build_index
 
     return build_index(lexical_only=True)

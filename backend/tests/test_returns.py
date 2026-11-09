@@ -1,7 +1,3 @@
-"""Regras de devolução, troca e garantia.
-
-Pedido 1: comprado em 2025-10-15, entrega prevista (referência de recebimento) 2025-10-25.
-"""
 import pytest
 
 from app.services.returns import check_return_eligibility

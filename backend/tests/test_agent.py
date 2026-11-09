@@ -1,4 +1,3 @@
-"""Loop do agente com um LLM roteirizado (sem rede): ferramentas, memória, escalonamento e falhas."""
 from __future__ import annotations
 
 import pytest

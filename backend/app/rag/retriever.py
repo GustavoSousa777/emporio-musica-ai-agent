@@ -1,11 +1,3 @@
-"""Índice das políticas em arquivo e busca híbrida (BM25 + embeddings).
-
-Fluxo:
-  build_index()  : PDF -> chunks -> (embeddings, se houver chave e cota) -> JSON em disco
-  Retriever.search(query, k): BM25 sempre; se o índice tem vetores e o modelo responde,
-      funde os dois rankings com Reciprocal Rank Fusion. Qualquer falha de embedding
-      (cota, rede, chave ausente) rebaixa a busca para só BM25, sem erro para o usuário.
-"""
 from __future__ import annotations
 
 import argparse

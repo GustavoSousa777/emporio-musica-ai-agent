@@ -1,4 +1,3 @@
-"""Tipos neutros do agente (independentes do SDK do Gemini)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

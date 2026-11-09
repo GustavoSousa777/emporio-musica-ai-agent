@@ -1,4 +1,3 @@
-"""RAG das políticas: extração do PDF, chunking por seção, índice em arquivo e busca."""
 from __future__ import annotations
 
 import math
@@ -87,7 +86,7 @@ def test_expansao_aproxima_vocabulario_do_cliente_do_manual():
     assert query_terms("devolver")[lex_tokens("devolver")[0]] == 1.0
 
 
-# --- índice em arquivo ------------------------------------------------------------------
+
 def test_indice_lexical_salva_e_carrega(lexical_index, tmp_path):
     path = tmp_path / "index.json"
     lexical_index.save(path)
@@ -98,7 +97,6 @@ def test_indice_lexical_salva_e_carrega(lexical_index, tmp_path):
 
 
 class FakeEmbedder:
-    """Embedder determinístico: bag-of-words em 64 dimensões (sem rede)."""
 
     dims = 64
 
@@ -183,7 +181,7 @@ def test_build_index_sobrevive_a_falha_total_de_embeddings():
     assert not index.has_vectors and index.chunks
 
 
-# --- load_retriever -----------------------------------------------------------------------
+
 @pytest.fixture()
 def lexical_env(monkeypatch, tmp_path):
     monkeypatch.setenv("RAG_INDEX_PATH", str(tmp_path / "idx" / "policies.json"))

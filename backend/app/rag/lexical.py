@@ -1,10 +1,3 @@
-"""Busca lexical (BM25) em português, sem dependências externas.
-
-Funciona sem chave de API e sem rede, e serve de base para a busca híbrida.
-O vocabulário do cliente ("devolver", "estragou", "quantas vezes") é aproximado do
-vocabulário do manual ("arrependimento", "defeito", "parcelamento") por uma lista
-curta de expansões, com peso menor que os termos originais.
-"""
 from __future__ import annotations
 
 import math

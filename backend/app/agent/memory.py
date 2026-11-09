@@ -1,12 +1,3 @@
-"""Memória de conversa por session_id e registro de encaminhamentos à equipe.
-
-Fica em um SQLite separado (data/conversations.db) para que recriar o banco da loja
-(`python -m app.database.seed`) não apague o histórico.
-
-Guardamos só o texto das mensagens do cliente e as respostas finais do agente. Os
-resultados de ferramentas não são persistidos: o histórico do cliente (e-mail e
-telefone informados por ele, por exemplo) já carrega o necessário para consultar de novo.
-"""
 from __future__ import annotations
 
 import sqlite3

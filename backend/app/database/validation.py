@@ -1,10 +1,3 @@
-"""Validações de integridade e consistência dos dados já carregados no SQLite.
-
-Severidades:
-  error   : dado inválido, o seed aborta (a menos que strict=False)
-  warning : inconsistência de negócio que o agente precisa tratar com cuidado
-  info    : observação útil
-"""
 from __future__ import annotations
 
 import re

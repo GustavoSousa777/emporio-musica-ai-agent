@@ -1,13 +1,3 @@
-"""Embeddings via Gemini, com suporte aos dois formatos de modelo.
-
-- gemini-embedding-001: usa `task_type` (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY).
-- gemini-embedding-2: não aceita `task_type`; a tarefa vai no texto
-  ("title: ... | text: ..." para documentos e "task: search result | query: ..." para
-  perguntas) e cada texto precisa estar em um `Content` próprio, senão a API devolve
-  UM embedding agregado para todos.
-
-Os vetores são normalizados (norma L2 = 1), então o produto escalar é o cosseno.
-"""
 from __future__ import annotations
 
 import logging

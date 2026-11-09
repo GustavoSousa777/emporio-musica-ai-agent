@@ -1,9 +1,3 @@
-"""Extração do PDF do manual e divisão em chunks por seção.
-
-O manual usa fontes distintas para os títulos (14 pt para "3.", 12 pt para "3.1"),
-então a estrutura é detectada pelo tamanho da fonte, não por regex de texto. Cada
-chunk é uma seção (ou subseção) inteira, com o título da seção-mãe como contexto.
-"""
 from __future__ import annotations
 
 import hashlib

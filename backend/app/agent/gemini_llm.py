@@ -1,14 +1,3 @@
-"""Cliente do Gemini para o agente: function calling com failover entre modelos.
-
-Detalhes importantes do Gemini 3 com ferramentas:
-- As "thought signatures" devolvidas junto das chamadas de função precisam voltar na
-  requisição seguinte. Enquanto o mesmo modelo continua respondendo, reenviamos o
-  conteúdo original (`Message.raw`). Se o failover trocar de modelo no meio do ciclo de
-  ferramentas, reconstruímos a mensagem a partir do texto e usamos a assinatura de
-  contorno documentada ("skip_thought_signature_validator").
-- Desligamos o function calling automático do SDK: o loop é nosso (app/agent/agent.py),
-  assim conseguimos validar argumentos, registrar as ferramentas usadas e limitar rodadas.
-"""
 from __future__ import annotations
 
 import base64
@@ -22,8 +11,6 @@ from app.core.gemini_failover import LLMUnavailableError, ModelPool, classify_er
 logger = logging.getLogger(__name__)
 
 TIMEOUT_MS = 40_000
-# Valor documentado pelo Google para pular a validação quando a assinatura original não existe.
-# O SDK serializa bytes em base64, então enviamos os bytes que, codificados, resultam no texto.
 DUMMY_SIGNATURE = base64.urlsafe_b64decode("skip_thought_signature_validator")
 
 
@@ -35,7 +22,6 @@ def make_client(api_key: str):
 
 
 def to_contents(messages: list[Message], model: str) -> list[Any]:
-    """Converte as mensagens neutras em `Content` do Gemini para o modelo informado."""
     from google.genai import types
 
     contents: list[Any] = []

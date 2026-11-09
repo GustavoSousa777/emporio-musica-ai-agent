@@ -1,8 +1,3 @@
-"""Loop do agente: mensagem do cliente -> (ferramentas)* -> resposta final.
-
-O LLM decide quando chamar ferramentas; este módulo executa as chamadas, devolve os
-resultados ao modelo, limita o número de rodadas e trata falhas sem derrubar a conversa.
-"""
 from __future__ import annotations
 
 import json
