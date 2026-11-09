@@ -66,6 +66,12 @@ class ScenarioResult:
     def failed_checks(self) -> list[CheckResult]:
         return [c for c in self.checks if not c.ok]
 
+    @property
+    def models_used(self) -> list[str]:
+        """Modelos que responderam neste cenário (vazio no modo offline, onde o modelo é o oráculo)."""
+        names = (r.model for r in self.replies if r.model and r.model != "oracle")
+        return list(dict.fromkeys(names))
+
 
 
 def run_scenario(
@@ -159,13 +165,14 @@ def render_report(results: list[ScenarioResult], *, live: bool, models: list[str
     lines += [
         f"- Resultado: **{totals['pass']} passaram**, {totals['fail']} falharam, {totals['infra']} sem resposta do modelo, de {totals['total']}",
         "",
-        "| Cenário | Categoria | Resultado | Ferramentas chamadas | Tempo |",
-        "|---|---|---|---|---|",
+        "| Cenário | Categoria | Resultado | Ferramentas chamadas | Tempo | Modelo |",
+        "|---|---|---|---|---|---|",
     ]
     icon = {PASS: "passou", FAIL: "**falhou**", INFRA: "sem modelo"}
     for r in results:
         tools = ", ".join(dict.fromkeys(rec.name for rec in r.records)) or "nenhuma"
-        lines.append(f"| `{r.scenario.id}` | {r.scenario.category} | {icon[r.status]} | {tools} | {r.seconds:.1f}s |")
+        model = ", ".join(r.models_used) or "-"
+        lines.append(f"| `{r.scenario.id}` | {r.scenario.category} | {icon[r.status]} | {tools} | {r.seconds:.1f}s | {model} |")
 
     problems = [r for r in results if r.status != PASS]
     if problems:
@@ -187,9 +194,40 @@ def render_report(results: list[ScenarioResult], *, live: bool, models: list[str
 
 
 
+def render_example(result: ScenarioResult) -> str:
+    """Conversa de um cenário em markdown, com as ferramentas que o agente chamou em cada turno."""
+    lines = [f"# {result.scenario.description}", "", f"- Cenário: `{result.scenario.id}` ({result.scenario.category})"]
+    if result.models_used:
+        lines.append(f"- Modelo: {', '.join(result.models_used)}")
+    if result.scenario.now:
+        lines.append(f"- Data simulada (`NOW_OVERRIDE`): {result.scenario.now}")
+    lines.append("")
+    for turn, reply in zip(result.scenario.turns, result.replies):
+        lines += [f"**Cliente:** {turn.user}", ""]
+        if reply.tools:
+            lines.append("_Ferramentas chamadas:_")
+            lines += [f"- `{t.name}` {t.args}" + ("" if t.ok else " (erro)") for t in reply.tools]
+            lines.append("")
+        lines += [f"**Assistente:** {reply.text}", ""]
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def export_examples(results: list[ScenarioResult], directory: Path | str) -> list[Path]:
+    """Grava uma conversa por arquivo. Só exporta cenários que passaram e responderam de verdade."""
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for number, result in enumerate((r for r in results if r.status == PASS), start=1):
+        path = directory / f"{number:02d}_{result.scenario.id}.md"
+        path.write_text(render_example(result), encoding="utf-8")
+        written.append(path)
+    return written
+
+
 def _print_result(result: ScenarioResult, verbose: bool) -> None:
     mark = {PASS: "ok   ", FAIL: "FALHA", INFRA: "SEM MODELO"}[result.status]
-    print(f"[{mark}] {result.scenario.id:<42} {result.seconds:5.1f}s")
+    used = f"  ({', '.join(result.models_used)})" if result.models_used else ""
+    print(f"[{mark}] {result.scenario.id:<42} {result.seconds:5.1f}s{used}")
     if result.status != PASS:
         if result.note:
             print(f"        {result.note}")
@@ -211,6 +249,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", help="grava o relatório em markdown neste caminho")
     parser.add_argument("--verbose", action="store_true", help="mostra as conversas também dos cenários que passaram")
     parser.add_argument("--list", action="store_true", help="lista os cenários e sai")
+    parser.add_argument("--export-examples", metavar="PASTA",
+                        help="grava a conversa de cada cenário que passou em PASTA/NN_id.md (use com --live)")
     args = parser.parse_args(argv)
 
     try:
@@ -227,7 +267,8 @@ def main(argv: list[str] | None = None) -> int:
         print("Nenhum cenário selecionado.", file=sys.stderr)
         return 2
 
-    logging.basicConfig(level=logging.ERROR, format="%(levelname)s %(message)s")
+    # Ao vivo, mostra os avisos de failover ("Modelo X falhou; bloqueado por Ns"): explicam a lentidão.
+    logging.basicConfig(level=logging.WARNING if args.live else logging.ERROR, format="%(levelname)s %(message)s")
     from app.core.config import get_settings
     from app.database.connection import ensure_database
     from app.rag.retriever import Retriever, build_index, load_retriever
@@ -259,6 +300,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n{totals['pass']} passaram, {totals['fail']} falharam, {totals['infra']} sem modelo, de {len(chosen)} cenários.")
     if len(results) < len(chosen):
         print(f"Interrompido após {len(results)} cenários: o modelo ficou indisponível. Rode de novo mais tarde.")
+    if args.export_examples:
+        if not args.live:
+            print("Aviso: sem --live as respostas são simuladas; exporte exemplos só no modo ao vivo.", file=sys.stderr)
+        else:
+            for path in export_examples(results, args.export_examples):
+                print(f"Exemplo salvo em {path}")
     if args.report:
         path = Path(args.report)
         path.parent.mkdir(parents=True, exist_ok=True)

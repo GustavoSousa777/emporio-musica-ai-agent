@@ -10,7 +10,9 @@ from app.agent.tools import TOOLS
 from app.core.gemini_failover import LLMUnavailableError
 from app.eval import checks
 from app.eval.checks import ToolRecord, check_replies, check_tools, extract_prices, fold
-from app.eval.runner import FAIL, INFRA, PASS, render_report, run_all, run_scenario, summarize
+from app.eval.runner import (
+    FAIL, INFRA, PASS, export_examples, render_example, render_report, run_all, run_scenario, summarize,
+)
 from app.eval.scenarios import CATEGORIES, SCENARIOS, SCENARIOS_BY_ID, A, Call, Expect, Scenario, T, select
 
 TOOL_NAMES = {t.name for t in TOOLS}
@@ -268,3 +270,27 @@ def test_main_id_desconhecido_e_ao_vivo_sem_chave(eval_env, capsys):
     assert main(["--id", "nao_existe"]) == 2
     assert main(["--live", "--core"]) == 2
     assert "GEMINI_API_KEY" in capsys.readouterr().err
+
+
+# --- exemplos exportados e modelo no relatório --------------------------------------------------------
+def test_relatorio_tem_coluna_do_modelo(retriever, db_path):
+    result = run_scenario(SCENARIOS_BY_ID["loja_endereco"], retriever=retriever, db_path=db_path)
+    report = render_report([result], live=False)
+    row = next(line for line in report.splitlines() if line.startswith("| `loja_endereco` |"))
+    assert "| Modelo |" in report and row.endswith("| - |")
+
+
+def test_exemplo_mostra_conversa_ferramentas_e_data_simulada(retriever, db_path):
+    result = run_scenario(SCENARIOS_BY_ID["loja_endereco"], retriever=retriever, db_path=db_path)
+    text = render_example(result)
+    assert "**Cliente:**" in text and "**Assistente:**" in text
+    assert "_Ferramentas chamadas:_" in text and "NOW_OVERRIDE" in text
+
+
+def test_exportar_exemplos_grava_so_cenarios_que_passaram(retriever, db_path, tmp_path):
+    ok = run_scenario(SCENARIOS_BY_ID["loja_endereco"], retriever=retriever, db_path=db_path)
+    bad_scenario = replace(SCENARIOS_BY_ID["loja_endereco"], id="loja_ruim", expect=Expect(tools_all=("search_products",)))
+    bad = run_scenario(bad_scenario, retriever=retriever, db_path=db_path)
+    written = export_examples([bad, ok], tmp_path / "exemplos")
+    assert [p.name for p in written] == ["01_loja_endereco.md"]
+    assert written[0].read_text(encoding="utf-8").startswith("# ")
