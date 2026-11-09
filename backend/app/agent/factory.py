@@ -16,6 +16,7 @@ def build_agent(
     llm: LLMClient | None = None,
     retriever: Retriever | None = None,
     conversations: ConversationStore | None = None,
+    now: str | None = None,
 ) -> Agent:
     settings = settings or get_settings()
     if llm is None:
@@ -32,4 +33,5 @@ def build_agent(
         retriever=retriever or load_retriever(settings),
         conversations=conversations or ConversationStore(settings.conversations_db_path),
         db_path=db_path,
+        now=now,
     )
