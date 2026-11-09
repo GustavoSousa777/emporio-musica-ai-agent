@@ -1,4 +1,3 @@
-"""Cliente do Gemini: conversão de mensagens, schemas e failover (sem chamar a API)."""
 from __future__ import annotations
 
 import pytest
@@ -105,6 +104,12 @@ def test_generate_troca_de_modelo_quando_a_cota_acaba_e_lembra_do_bloqueio():
 def test_generate_tenta_de_novo_no_5xx_antes_de_trocar():
     llm = _llm({"m1": [FakeAPIError(503), _response(text="ok")], "m2": []})
     assert llm.generate([Message(role="user", text="x")], "s", TOOLS).model == "m1"
+
+
+def test_generate_504_troca_de_modelo_na_hora():
+    llm = _llm({"m1": [FakeAPIError(504)], "m2": [_response(text="ok")]})
+    assert llm.generate([Message(role="user", text="x")], "s", TOOLS).model == "m2"
+    assert llm._client.models.calls == ["m1", "m2"]  # sem segunda tentativa no m1
 
 
 def test_generate_erro_400_nao_troca():

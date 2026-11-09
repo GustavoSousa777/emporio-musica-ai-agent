@@ -58,6 +58,9 @@ class ErrorInfo:
 
     @property
     def retry_same_model(self) -> bool:
+        # 504 (DEADLINE_EXCEEDED) já gastou o tempo limite inteiro: repetir no mesmo modelo só dobra a espera.
+        if self.code == 504:
+            return False
         return self.is_connection or (self.code is not None and self.code >= 500)
 
 

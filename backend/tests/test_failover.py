@@ -1,4 +1,3 @@
-"""Failover entre modelos: classificação de erros, bloqueios e embeddings com reserva."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -137,3 +136,8 @@ def test_embedding_todos_falham_levanta_indisponivel_com_flag_diaria():
     with pytest.raises(LLMUnavailableError) as info:
         embed_with_failover(["x"], None, ["m1", "m2"], lambda model: StubEmbedder(model, FakeAPIError(429, DAILY)))
     assert info.value.daily_quota
+
+
+def test_504_troca_de_modelo_sem_retentar():
+    info = classify_error(FakeAPIError(504))
+    assert info.switch_model and not info.retry_same_model
