@@ -45,3 +45,26 @@ CUSTOMERS = {
 @pytest.fixture()
 def customers():
     return CUSTOMERS
+
+
+# --- Fixtures do RAG e do agente (Etapas 3 e 4) ------------------------------------------
+@pytest.fixture(scope="session")
+def lexical_index():
+    """Índice das políticas só com BM25: não chama API nem precisa de chave."""
+    from app.rag.retriever import build_index
+
+    return build_index(lexical_only=True)
+
+
+@pytest.fixture(scope="session")
+def retriever(lexical_index):
+    from app.rag.retriever import Retriever
+
+    return Retriever(lexical_index, embedder=None, mode="lexical")
+
+
+@pytest.fixture()
+def conversations(tmp_path):
+    from app.agent.memory import ConversationStore
+
+    return ConversationStore(tmp_path / "conversations.db")

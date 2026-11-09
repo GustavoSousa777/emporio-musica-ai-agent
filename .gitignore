@@ -16,6 +16,9 @@ venv/
 backend/data/*.db
 backend/data/*.sqlite3
 
+# Índice vetorial gerado a partir do PDF (python -m app.rag.build_index)
+backend/data/index/
+
 # Node / Next.js
 node_modules/
 .next/

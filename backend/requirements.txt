@@ -3,4 +3,8 @@ python-dotenv>=1.0
 rapidfuzz>=3.5
 # Windows não traz base de fusos horários; necessário para zoneinfo
 tzdata>=2024.1
+# RAG: leitura do PDF de políticas
+pdfplumber>=0.11
+# LLM (Gemini): function calling e embeddings
+google-genai>=2.34
 pytest>=8.0
