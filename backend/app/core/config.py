@@ -36,6 +36,10 @@ class Settings:
     embedding_models: tuple[str, ...]
     embedding_dims: int
     rag_mode: str  # "hybrid" (BM25 + embeddings) ou "lexical" (só BM25)
+    cors_origins: tuple[str, ...] = ()
+    rate_limit_per_minute: int = 30
+    api_key: str | None = None
+    trust_proxy: bool = False
 
 
 def _blank_to_none(value: str | None) -> str | None:
@@ -45,6 +49,10 @@ def _blank_to_none(value: str | None) -> str | None:
 
 def _csv(value: str | None) -> list[str]:
     return [item.strip() for item in (value or "").split(",") if item.strip()]
+
+
+def _flag(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "sim", "on"}
 
 
 def _path(env_name: str, default: str) -> Path:
@@ -74,4 +82,8 @@ def get_settings() -> Settings:
         embedding_models=embedding_models,
         embedding_dims=int(os.environ.get("GEMINI_EMBEDDING_DIMS") or 768),
         rag_mode=rag_mode if rag_mode in ("hybrid", "lexical") else "hybrid",
+        cors_origins=tuple(_csv(os.environ.get("CORS_ORIGINS"))),
+        rate_limit_per_minute=int(os.environ.get("RATE_LIMIT_PER_MINUTE") or 30),
+        api_key=_blank_to_none(os.environ.get("API_KEY")),
+        trust_proxy=_flag(os.environ.get("TRUST_PROXY")),
     )
