@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Logo from "@/components/Logo";
+import RichText from "@/components/RichText";
 import type { ChatMessage } from "@/lib/types";
 
 const STORAGE_KEY = "emporio:session";
@@ -180,7 +181,7 @@ function ChatPanel({ boot, onReset }: { boot: Boot; onReset: () => void }) {
           return (
             <div key={message.id} className={`row ${message.role}`}>
               <div className="bubble">
-                <p>{text}</p>
+                {message.role === "assistant" ? <RichText text={text} /> : <p>{text}</p>}
                 {message.role === "assistant" && (tools.length > 0 || escalated) && (
                   <div className="tags">
                     {escalated && <span className="tag alert">Encaminhado à equipe</span>}

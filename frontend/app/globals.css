@@ -234,6 +234,23 @@ body {
   box-shadow: 0 8px 24px rgba(252, 0, 101, 0.25);
 }
 
+.rich > * + * {
+  margin-top: 10px;
+}
+
+.rich ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.rich li + li {
+  margin-top: 4px;
+}
+
+.rich strong {
+  font-weight: 700;
+}
+
 .tags {
   display: flex;
   flex-wrap: wrap;
