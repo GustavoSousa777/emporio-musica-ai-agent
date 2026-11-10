@@ -65,6 +65,17 @@ curl localhost:8000/health
 
 Detalhes, variáveis e códigos de erro em [docs/api.md](docs/api.md).
 
+### Interface web
+
+```bash
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev                                         # http://localhost:3000
+```
+
+Com a API rodando em `localhost:8000`. Detalhes em [frontend/README.md](frontend/README.md).
+
 ### Docker
 
 ```bash
@@ -110,7 +121,7 @@ O modo `--live` roda cenários em que o modelo decide sozinho e confere, para ca
 
 **Persistência.** Dois SQLites separados. Um guarda os dados da loja e é recriado pelo seed. O outro (`data/conversations.db`) guarda o histórico por `session_id` e os encaminhamentos à equipe, e por isso recriar a base da loja não apaga conversas. O histórico guarda só o texto das mensagens, não os resultados das ferramentas.
 
-**Interface: CLI.** O enunciado dá liberdade e pede foco no agente, então a interface é um terminal (`python -m app.agent.cli`). O agente é uma classe (`Agent.reply(session_id, texto)`) independente da interface, o que permitiu expor a mesma lógica por uma API FastAPI (`app/main.py`) sem alterar o agente.
+**Interface: CLI e web.** O enunciado dá liberdade e pede foco no agente, então a interface é um terminal (`python -m app.agent.cli`). O agente é uma classe (`Agent.reply(session_id, texto)`) independente da interface, o que permitiu expor a mesma lógica por uma API FastAPI (`app/main.py`) sem alterar o agente.
 
 **Tratamento dos dados.** Os CSVs viram um SQLite com tipos corretos, `specs` em JSON e colunas normalizadas (sem acento, minúsculas) para busca tolerante a erro de digitação. O seed valida os dados e registra as inconsistências em [docs/data_quality.md](docs/data_quality.md) (0 erros, 9 avisos, 3 informações).
 
@@ -135,12 +146,12 @@ As decisões completas estão em [docs/premissas.md](docs/premissas.md). As prin
 - **A busca híbrida** gasta uma chamada de embedding por pergunta nova (há cache por texto).
 - **O agente só consulta.** Ele não altera, cancela nem reembolsa pedidos: nesses casos encaminha à equipe.
 - **Região metropolitana** não é definida no manual. Assumi apenas Campo Grande para frete grátis. Fora dela o agente informa modalidades e prazos, sem inventar valor.
-- **Sem interface web nem streaming.** A API responde em JSON, depois que o agente termina.
+- **Sem streaming real.** A API responde em JSON, depois que o agente termina, e a interface mostra a resposta inteira de uma vez.
 - A avaliação cobre cenários escritos por mim. Não é uma garantia contra todas as conversas reais.
 
 ## O que faria com mais tempo
 
-- Streaming da resposta na API e uma interface web simples.
+- Streaming da resposta palavra por palavra na API e na interface.
 - Calibrar o limiar do RAG com um conjunto de perguntas rotuladas e medir a recuperação.
 - Registrar tempo e modelo de cada chamada ao LLM e investigar a latência a fundo.
 - Avaliar também com um segundo modelo como juiz, além das checagens por padrão de texto.
@@ -168,5 +179,5 @@ backend/
 Dockerfile em backend/ e docker-compose.yml na raiz
 docs/              arquitetura, premissas, qualidade dos dados, RAG e avaliação
 examples/          conversas de exemplo
-frontend/          reservado, sem implementação
+frontend/          interface de chat em Next.js (AI SDK UI)
 ```

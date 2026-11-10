@@ -42,6 +42,16 @@ Resposta 200:
 | 500 | erro inesperado; a mensagem não revela detalhes |
 | 503 | agente não iniciou (por exemplo, sem `GEMINI_API_KEY`) |
 
+## GET /chat/{session_id}/history
+
+Devolve as mensagens da conversa (até as últimas 100), em ordem, para a interface retomar uma conversa depois de recarregar a página. Só traz o texto de cliente e assistente. Sessão sem mensagens devolve lista vazia. Exige `X-API-Key` quando `API_KEY` está configurada.
+
+```json
+{"session_id": "abc", "messages": [{"role": "user", "text": "Oi"}, {"role": "assistant", "text": "Olá!"}]}
+```
+
+O `session_id` funciona como segredo da conversa: quem souber o id lê o histórico. Os ids que a interface gera são UUIDs aleatórios.
+
 ## GET /health
 
 Sempre aberto, sem exigir chave. Devolve 200 com `status: "ok"` quando o banco da loja e o índice das políticas estão carregados, e 503 com `status: "degraded"` e `detail` caso contrário. É o que o `HEALTHCHECK` do Docker usa.

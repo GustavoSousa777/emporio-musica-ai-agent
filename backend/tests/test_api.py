@@ -219,6 +219,45 @@ def test_sem_agente_o_health_explica_e_o_chat_devolve_503(monkeypatch):
     assert chat.status_code == 503
 
 
+def test_historico_devolve_a_conversa_em_ordem(make_client):
+    client, _ = make_client([say("Olá!"), say("Claro, qual pedido?")])
+    client.post("/chat", json={"message": "Oi", "session_id": "h1"})
+    client.post("/chat", json={"message": "Quero saber de um pedido", "session_id": "h1"})
+    body = client.get("/chat/h1/history").json()
+    assert body["session_id"] == "h1"
+    assert body["messages"] == [
+        {"role": "user", "text": "Oi"},
+        {"role": "assistant", "text": "Olá!"},
+        {"role": "user", "text": "Quero saber de um pedido"},
+        {"role": "assistant", "text": "Claro, qual pedido?"},
+    ]
+
+
+def test_historico_de_sessao_desconhecida_vem_vazio(make_client):
+    client, _ = make_client([])
+    response = client.get("/chat/nunca-usada/history")
+    assert response.status_code == 200 and response.json()["messages"] == []
+
+
+def test_historico_nao_mistura_sessoes(make_client):
+    client, _ = make_client([say("a"), say("b")])
+    client.post("/chat", json={"message": "primeira", "session_id": "s1"})
+    client.post("/chat", json={"message": "segunda", "session_id": "s2"})
+    assert [m["text"] for m in client.get("/chat/s2/history").json()["messages"]] == ["segunda", "b"]
+
+
+def test_historico_rejeita_session_id_invalido(make_client):
+    client, _ = make_client([])
+    assert client.get("/chat/" + "x" * 65 + "/history").status_code == 422
+    assert client.get("/chat/com espaco/history").status_code == 422
+
+
+def test_historico_exige_chave_quando_configurada(make_client):
+    client, _ = make_client([], api_key="segredo")
+    assert client.get("/chat/s1/history").status_code == 401
+    assert client.get("/chat/s1/history", headers={"X-API-Key": "segredo"}).status_code == 200
+
+
 def test_documentacao_openapi_lista_as_rotas(make_client):
     client, _ = make_client([])
     paths = client.get("/openapi.json").json()["paths"]

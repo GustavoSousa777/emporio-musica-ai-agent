@@ -5,7 +5,7 @@ CSVs (data/raw) --seed--> SQLite (emporio.db) --> services (regras determinísti
                                                                                      |
 PDF (data/policies) --ingestão--> chunks --> índice BM25 + embeddings --> retriever --+--> ferramentas
                                                                                      |
-                                                       agente (Gemini, function calling, loop) --> CLI / API FastAPI
+                                                       agente (Gemini, function calling, loop) --> CLI / API FastAPI --> frontend Next.js
                                                                                      |
                                                        conversations.db (histórico e encaminhamentos)
 ```
@@ -18,6 +18,7 @@ PDF (data/policies) --ingestão--> chunks --> índice BM25 + embeddings --> retr
 - `app/rag`: extração do PDF, chunking por seção, busca BM25 em português, embeddings do Gemini e fusão por RRF. Detalhes em [rag.md](rag.md).
 - `app/agent`: prompt, 11 ferramentas com argumentos validados, loop (máximo de 6 rodadas), cliente Gemini, memória por `session_id` e CLI.
 - `app/api` e `app/main.py`: API FastAPI com `POST /chat` e `GET /health`, validação de entrada, limite de taxa por IP, chave de API opcional e CORS. A API só traduz HTTP para `Agent.reply`.
+- `frontend/`: Next.js com AI SDK UI. A rota `app/api/chat/route.ts` chama a API do backend no servidor e entrega a resposta ao `useChat`.
 - `app/eval`: cenários de avaliação com ferramenta e resposta esperadas, em modo offline (oráculo) e ao vivo. Ver [avaliacao.md](avaliacao.md).
 
 ## Fluxo de uma mensagem
@@ -37,4 +38,4 @@ PDF (data/policies) --ingestão--> chunks --> índice BM25 + embeddings --> retr
 
 ## Não implementado
 
-Interface web e streaming. O agente é acessível pela CLI e pela API.
+Streaming real da resposta. O agente é acessível pela CLI, pela API e pela interface web em `frontend/`.
