@@ -1,0 +1,22 @@
+name: emporio-musica
+
+services:
+  backend:
+    build: ./backend
+    image: emporio-musica-backend
+    ports:
+      - "${HOST_PORT:-8000}:8000"
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      PORT: "8000"
+      DB_PATH: /app/data/emporio.db
+      CONVERSATIONS_DB_PATH: /app/state/conversations.db
+      RAG_INDEX_PATH: /app/state/policies_index.json
+    volumes:
+      - backend_state:/app/state
+    restart: unless-stopped
+
+volumes:
+  backend_state:
