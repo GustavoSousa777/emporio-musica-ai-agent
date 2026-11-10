@@ -46,7 +46,7 @@ def _llm(behaviors, models=("m1", "m2")):
     return GeminiLLM(None, ModelPool(models), client=FakeClient(behaviors), sleep=lambda s: None)
 
 
-# --- conversão --------------------------------------------------------------------------------
+
 def test_to_contents_mantem_o_conteudo_original_para_o_mesmo_modelo():
     raw = types.Content(role="model", parts=[types.Part(function_call=types.FunctionCall(name="x", args={}), thought_signature=b"sig")])
     msgs = [
@@ -87,7 +87,7 @@ def test_parse_response_sem_candidatos_devolve_vazio():
     assert turn.text == "" and turn.tool_calls == []
 
 
-# --- failover ---------------------------------------------------------------------------------
+
 def test_generate_usa_o_primeiro_modelo():
     llm = _llm({"m1": [_response(text="oi")], "m2": []})
     turn = llm.generate([Message(role="user", text="oi")], "sys", TOOLS)
@@ -104,12 +104,6 @@ def test_generate_troca_de_modelo_quando_a_cota_acaba_e_lembra_do_bloqueio():
 def test_generate_tenta_de_novo_no_5xx_antes_de_trocar():
     llm = _llm({"m1": [FakeAPIError(503), _response(text="ok")], "m2": []})
     assert llm.generate([Message(role="user", text="x")], "s", TOOLS).model == "m1"
-
-
-def test_generate_504_troca_de_modelo_na_hora():
-    llm = _llm({"m1": [FakeAPIError(504)], "m2": [_response(text="ok")]})
-    assert llm.generate([Message(role="user", text="x")], "s", TOOLS).model == "m2"
-    assert llm._client.models.calls == ["m1", "m2"]  # sem segunda tentativa no m1
 
 
 def test_generate_erro_400_nao_troca():

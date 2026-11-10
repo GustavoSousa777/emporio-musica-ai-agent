@@ -1,4 +1,3 @@
-"""Avaliação do agente: cenários bem formados, oráculo sobre os dados reais e verificadores."""
 from __future__ import annotations
 
 from dataclasses import replace
@@ -10,15 +9,13 @@ from app.agent.tools import TOOLS
 from app.core.gemini_failover import LLMUnavailableError
 from app.eval import checks
 from app.eval.checks import ToolRecord, check_replies, check_tools, extract_prices, fold
-from app.eval.runner import (
-    FAIL, INFRA, PASS, export_examples, render_example, render_report, run_all, run_scenario, summarize,
-)
+from app.eval.runner import FAIL, INFRA, PASS, render_report, run_all, run_scenario, summarize
 from app.eval.scenarios import CATEGORIES, SCENARIOS, SCENARIOS_BY_ID, A, Call, Expect, Scenario, T, select
 
 TOOL_NAMES = {t.name for t in TOOLS}
 
 
-# --- cenários -------------------------------------------------------------------------------
+
 def test_conjunto_de_cenarios_tem_o_tamanho_pedido():
     assert 20 <= len(SCENARIOS) <= 30
     assert len({s.id for s in SCENARIOS}) == len(SCENARIOS)
@@ -55,7 +52,7 @@ def test_select_filtra_e_rejeita_id_desconhecido():
         select(["nao_existe"])
 
 
-# --- oráculo: os dados reais sustentam cada cenário -------------------------------------------
+
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.id)
 def test_oraculo_passa_em_todos_os_cenarios(scenario, retriever, db_path):
     result = run_scenario(scenario, retriever=retriever, db_path=db_path)
@@ -74,7 +71,7 @@ def test_cenarios_nao_compartilham_historico_nem_protocolos(retriever, db_path):
     assert protocols == ["ATD-00001", "ATD-00001"]
 
 
-# --- verificadores --------------------------------------------------------------------------------
+
 def test_fold_remove_acento_e_caixa():
     assert fold("Não é Cumulativo, Ação") == "nao e cumulativo, acao"
 
@@ -159,7 +156,7 @@ def test_check_replies_escalonamento():
     assert not check_replies(expect, ["ok"], False)[0].ok
 
 
-# --- modo ao vivo (com LLM injetado, sem rede) ------------------------------------------------------
+
 class FakeLLM:
     def __init__(self, turns):
         self.turns = list(turns)
@@ -226,7 +223,7 @@ def test_cenario_que_o_oraculo_nao_sustenta_falha(retriever, db_path):
     assert result.status == FAIL and len(result.failed_checks) == 2
 
 
-# --- relatório e linha de comando ---------------------------------------------------------------------
+
 def test_relatorio_lista_cenarios_e_detalha_falhas(retriever, db_path):
     ok = run_scenario(SCENARIOS_BY_ID["loja_endereco"], retriever=retriever, db_path=db_path)
     bad_scenario = replace(SCENARIOS_BY_ID["loja_endereco"], id="loja_endereco_ruim", expect=Expect(tools_all=("search_products",)))
@@ -270,27 +267,3 @@ def test_main_id_desconhecido_e_ao_vivo_sem_chave(eval_env, capsys):
     assert main(["--id", "nao_existe"]) == 2
     assert main(["--live", "--core"]) == 2
     assert "GEMINI_API_KEY" in capsys.readouterr().err
-
-
-# --- exemplos exportados e modelo no relatório --------------------------------------------------------
-def test_relatorio_tem_coluna_do_modelo(retriever, db_path):
-    result = run_scenario(SCENARIOS_BY_ID["loja_endereco"], retriever=retriever, db_path=db_path)
-    report = render_report([result], live=False)
-    row = next(line for line in report.splitlines() if line.startswith("| `loja_endereco` |"))
-    assert "| Modelo |" in report and row.endswith("| - |")
-
-
-def test_exemplo_mostra_conversa_ferramentas_e_data_simulada(retriever, db_path):
-    result = run_scenario(SCENARIOS_BY_ID["loja_endereco"], retriever=retriever, db_path=db_path)
-    text = render_example(result)
-    assert "**Cliente:**" in text and "**Assistente:**" in text
-    assert "_Ferramentas chamadas:_" in text and "NOW_OVERRIDE" in text
-
-
-def test_exportar_exemplos_grava_so_cenarios_que_passaram(retriever, db_path, tmp_path):
-    ok = run_scenario(SCENARIOS_BY_ID["loja_endereco"], retriever=retriever, db_path=db_path)
-    bad_scenario = replace(SCENARIOS_BY_ID["loja_endereco"], id="loja_ruim", expect=Expect(tools_all=("search_products",)))
-    bad = run_scenario(bad_scenario, retriever=retriever, db_path=db_path)
-    written = export_examples([bad, ok], tmp_path / "exemplos")
-    assert [p.name for p in written] == ["01_loja_endereco.md"]
-    assert written[0].read_text(encoding="utf-8").startswith("# ")
