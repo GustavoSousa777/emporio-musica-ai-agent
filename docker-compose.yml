@@ -18,5 +18,17 @@ services:
       - backend_state:/app/state
     restart: unless-stopped
 
+  frontend:
+    build: ./frontend
+    image: emporio-musica-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   backend_state:

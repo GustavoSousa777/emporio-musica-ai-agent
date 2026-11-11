@@ -84,7 +84,11 @@ docker compose up --build
 curl localhost:8000/health
 ```
 
-A imagem já traz o banco da loja e o índice das políticas (BM25). O histórico de conversas e o índice com embeddings ficam no volume `backend_state`. Para trocar a porta do host: `HOST_PORT=8080 docker compose up`.
+O compose sobe a API (porta 8000) e a interface (http://localhost:3000). A imagem do backend já traz o banco da loja e o índice das políticas (BM25). O histórico de conversas e o índice com embeddings ficam no volume `backend_state`. Para trocar a porta do host: `HOST_PORT=8080 docker compose up`.
+
+### Deploy no Azure (opcional)
+
+Imagens publicadas no GHCR pelo GitHub Actions e dois apps no Azure Container Apps (só a interface é pública). Passo a passo em [docs/deploy-azure.md](docs/deploy-azure.md).
 
 ### Data fixa para demonstrações
 
