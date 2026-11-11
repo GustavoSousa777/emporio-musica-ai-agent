@@ -1,14 +1,36 @@
 # Empório da Música: agente de atendimento
 
-Protótipo de um agente de atendimento por mensagem de texto para a Empório da Música, loja fictícia de instrumentos musicais de Campo Grande/MS. Feito para o Desafio Técnico AI Engineer da Artefact.
+Agente de atendimento por texto para a Empório da Música, a loja fictícia de instrumentos musicais de Campo Grande/MS do desafio técnico de AI Engineer da Artefact. Ele responde dúvidas de horário, preço, estoque, frete, pagamento, pedidos, trocas e garantia usando os CSVs e o manual de políticas da loja, recusa o que foge do escopo e passa para um atendente humano quando precisa.
 
-O agente responde dúvidas de horário, preço, estoque, frete, pagamento, pedidos, trocas e garantia usando **só** os dados e o manual de políticas fornecidos. Ele sabe quando consultar dados (preço, estoque, pedido) e quando consultar políticas (troca, horário, pagamento), recusa com simpatia o que está fora do escopo e encaminha a um atendente humano quando precisa.
+## Demonstração online (bônus)
 
-- Conversas de exemplo: [examples/](examples/)
-- API HTTP: [docs/api.md](docs/api.md)
-- Resultado da avaliação com o Gemini de verdade: [docs/avaliacao_ao_vivo.md](docs/avaliacao_ao_vivo.md)
-- Premissas sobre ambiguidades: [docs/premissas.md](docs/premissas.md)
-- Qualidade dos dados: [docs/data_quality.md](docs/data_quality.md)
+https://emporio-frontend.niceocean-f7122f5d.brazilsouth.azurecontainerapps.io
+
+O enunciado não pede deploy. Publiquei a interface no Azure Container Apps para quem quiser testar sem instalar nada. O passo a passo está em [docs/deploy-azure.md](docs/deploy-azure.md).
+
+Pontos para quem for testar:
+
+- A primeira resposta pode demorar. O agente usa o plano gratuito do Gemini e às vezes troca de modelo no meio da conversa.
+- A cota diária do Gemini é limitada. Se acabar, o agente responde com um aviso de instabilidade e os contatos da loja.
+- A demo usa a data real. Os pedidos entregues da base são antigos, então um pedido de devolução aparece como fora do prazo. O caso dentro do prazo está em [examples/04_devolucao_arrependimento_no_prazo.md](examples/04_devolucao_arrependimento_no_prazo.md), gerado com data fixa.
+- Para testar consulta de pedido: pedido 8 com o e-mail anacarol.ferreira@coldmail.com.
+- O histórico de conversa do servidor se perde se o container reiniciar.
+
+## O que o enunciado pede e onde está
+
+| Pedido do enunciado | Onde está |
+|---|---|
+| Python como linguagem principal | `backend/` (Python 3.11 ou superior). A interface web, em TypeScript, é um extra |
+| Persona alinhada com a loja | `backend/app/agent/prompts.py` e a seção Prompt abaixo |
+| Responder com base no contexto disponibilizado | O agente só afirma o que as ferramentas retornam: SQLite montado a partir dos CSVs e busca no manual em PDF |
+| Saber quando consultar dados e quando consultar políticas | 11 ferramentas em `backend/app/agent/tools.py`. Dados: produtos, promoções, pedidos, frete, pagamento e loja. Políticas: `search_policies`. Os cenários de avaliação conferem qual ferramenta o modelo escolheu |
+| Lidar com perguntas fora do escopo | Regras no prompt, cenários `escopo_*` na avaliação e [examples/05_escopo_acessorios.md](examples/05_escopo_acessorios.md) |
+| Decisões técnicas justificadas | Seção Decisões técnicas |
+| Como rodar | Seção Como rodar |
+| Limitações e o que faria com mais tempo | Seções com esses nomes |
+| Uso de assistentes de código | Seção com esse nome |
+| 3 a 5 conversas de exemplo | [examples/](examples/), com 5 conversas geradas pelo agente de verdade |
+| Histórico de commits | `git log`: um commit por etapa, sem force-push |
 
 ## Como funciona
 
@@ -26,11 +48,13 @@ mensagem do cliente
 resposta em português, com a persona da loja
 ```
 
-A regra central: **o LLM decide qual ferramenta chamar e redige a resposta. Toda conta é feita em código.** Preço promocional, parcelas, frete, prazo de devolução e horário de funcionamento são funções determinísticas e testadas em `backend/app/services`. Assim o resultado é reproduzível e o modelo não tem como errar uma conta.
+O modelo escolhe a ferramenta e escreve a resposta. As contas (preço promocional, parcelas, frete, prazo de devolução, horário de funcionamento) são feitas em código, em `backend/app/services`, e têm testes. Assim o modelo não tem como errar uma conta.
 
 ## Como rodar
 
-Requisitos: Python 3.11 ou superior e uma chave do Google AI Studio (https://aistudio.google.com/apikey).
+Requisitos: Python 3.11 ou superior e uma chave do Google AI Studio (https://aistudio.google.com/apikey). Node 20 ou superior só para a interface web, e Docker só se quiser usar o compose.
+
+### Agente no terminal
 
 ```bash
 cd backend
@@ -40,21 +64,21 @@ pip install -r requirements.txt
 cp .env.example .env               # Windows: copy .env.example .env
 ```
 
-Edite `backend/.env` e preencha `GEMINI_API_KEY=` com a sua chave (sem aspas). O `.env` está no `.gitignore`.
+Preencha `GEMINI_API_KEY=` no `backend/.env`, sem aspas. O `.env` está no `.gitignore`.
 
 ```bash
 python -m app.database.seed        # cria data/emporio.db a partir dos CSVs e gera docs/data_quality.md
-python -m app.rag.build_index      # (opcional) gera o índice com embeddings; sem ele a busca usa só BM25
+python -m app.rag.build_index      # opcional: gera o índice com embeddings. Sem ele a busca usa só BM25
 python -m app.agent.cli            # conversa com o agente no terminal
 ```
 
-Opções da CLI: `--session ID` (retoma uma conversa) e `--show-tools` (mostra quais ferramentas o agente chamou).
+Opções da CLI: `--session ID` retoma uma conversa, `--show-tools` mostra as ferramentas chamadas e `--now 2025-10-28T10:00:00` fixa a data de hoje.
 
 ### API HTTP
 
 ```bash
 cd backend
-uvicorn app.main:create_app --factory --reload     # http://localhost:8000/docs
+uvicorn app.main:create_app --factory --reload     # documentação em http://localhost:8000/docs
 ```
 
 ```bash
@@ -63,7 +87,7 @@ curl -X POST localhost:8000/chat -H "Content-Type: application/json" \
 curl localhost:8000/health
 ```
 
-Detalhes, variáveis e códigos de erro em [docs/api.md](docs/api.md).
+Rotas, variáveis e códigos de erro em [docs/api.md](docs/api.md).
 
 ### Interface web
 
@@ -74,96 +98,125 @@ npm install
 npm run dev                                         # http://localhost:3000
 ```
 
-Com a API rodando em `localhost:8000`. Detalhes em [frontend/README.md](frontend/README.md).
+Precisa da API rodando em `localhost:8000`. Mais detalhes em [frontend/README.md](frontend/README.md).
 
 ### Docker
 
 ```bash
 cp backend/.env.example backend/.env     # preencha GEMINI_API_KEY
 docker compose up --build
-curl localhost:8000/health
 ```
 
-O compose sobe a API (porta 8000) e a interface (http://localhost:3000). A imagem do backend já traz o banco da loja e o índice das políticas (BM25). O histórico de conversas e o índice com embeddings ficam no volume `backend_state`. Para trocar a porta do host: `HOST_PORT=8080 docker compose up`.
-
-### Deploy no Azure (opcional)
-
-Imagens publicadas no GHCR pelo GitHub Actions e dois apps no Azure Container Apps (só a interface é pública). Passo a passo em [docs/deploy-azure.md](docs/deploy-azure.md).
+O compose sobe a API em `localhost:8000` e a interface em `localhost:3000`. A imagem do backend já traz o banco da loja e o índice das políticas (só BM25). O histórico de conversas e o índice com embeddings ficam no volume `backend_state`.
 
 ### Data fixa para demonstrações
 
-Todos os pedidos entregues da base são antigos (2025 a fevereiro de 2026), e a regra de arrependimento depende da data de hoje. Para reproduzir um cenário, defina `NOW_OVERRIDE` no `.env`, por exemplo `NOW_OVERRIDE=2025-10-28T10:00:00`. Sem isso o agente usa a data real.
+Os pedidos entregues da base são de 2025 até fevereiro de 2026, e a regra de arrependimento depende da data de hoje. Para reproduzir um caso, defina `NOW_OVERRIDE` no `.env`, por exemplo `NOW_OVERRIDE=2025-10-28T10:00:00`. Sem isso o agente usa a data real.
 
-### Testes e avaliação
+## Exemplos de conversa
 
-```bash
-python -m pytest                                   # testes unitários e de integração, sem rede e sem chave
-python -m app.eval --core                          # cenários rápidos, offline (ferramentas e dados, sem LLM)
-python -m app.eval --live --core --report ../docs/avaliacao_ao_vivo.md   # com o Gemini de verdade
-python -m app.eval --list                          # lista os cenários
-```
+Em [examples/](examples/), geradas com o Gemini de verdade:
 
-Para gerar as conversas de exemplo a partir de execuções reais:
+| Arquivo | Situação |
+|---|---|
+| `01_catalogo_violoes_ate_1000.md` | violões até R$ 1.000, consulta ao catálogo |
+| `02_catalogo_preco_takamine_gd20.md` | preço do Takamine GD20, que tem promoção inativa |
+| `03_loja_endereco.md` | endereço e horário da loja |
+| `04_devolucao_arrependimento_no_prazo.md` | arrependimento: regra de 7 dias aplicada em código, com data fixa |
+| `05_escopo_acessorios.md` | pergunta fora do escopo (a loja não vende acessórios) |
+
+Para gerar de novo, dentro de `backend/`:
 
 ```bash
 python -m app.eval --live --export-examples ../examples \
-  --id catalogo_preco_takamine_gd20 --id catalogo_violoes_ate_1000 \
-  --id devolucao_arrependimento_no_prazo --id escopo_acessorios
+  --id catalogo_violoes_ate_1000 --id catalogo_preco_takamine_gd20 \
+  --id loja_endereco --id devolucao_arrependimento_no_prazo --id escopo_acessorios
 ```
-
-O modo `--live` roda cenários em que o modelo decide sozinho e confere, para cada um, as ferramentas chamadas, os dados retornados e o texto da resposta (por exemplo: não prometer desconto de promoção encerrada, não vazar dado de outro cliente, não revelar o prompt). Com `--export-examples PASTA` ele grava as conversas que passaram como arquivos markdown, que é como se geram os exemplos de `examples/` (comando na seção abaixo).
 
 ## Decisões técnicas e justificativas
 
-**Abordagem: function calling com loop próprio, sem framework de agentes.** O problema tem poucas ferramentas e fluxo curto. Um loop explícito (`app/agent/agent.py`) me deixa validar os argumentos de cada chamada com Pydantic, limitar as rodadas, registrar o rastro das ferramentas e tratar falhas sem derrubar a conversa. Um framework adicionaria abstração sem resolver nada disso. O mesmo modelo Pydantic gera o JSON Schema enviado ao Gemini, então não há duas definições para manter em sincronia.
+### Abordagem: function calling com loop próprio
 
-**Modelo e provedor: Google Gemini.** Usado para geração (function calling) e para embeddings, com uma única chave. Como o plano gratuito tem limite diário, há um **failover entre modelos** (`app/core/gemini_failover.py`): erro 429 ou 404 troca de modelo, erro 5xx tenta de novo antes de trocar, e cota diária esgotada bloqueia o modelo até a virada do dia. Os nomes dos modelos ficam no `.env` (`GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`).
+O problema tem poucas ferramentas e um fluxo curto, então não usei framework de agentes. Um loop explícito (`app/agent/agent.py`) me deixa validar os argumentos de cada chamada com Pydantic, limitar as rodadas, registrar o rastro das ferramentas e tratar falhas sem derrubar a conversa. O mesmo modelo Pydantic gera o JSON Schema enviado ao Gemini, então só existe uma definição de cada ferramenta.
 
-**Retrieval das políticas: RAG híbrido.** O PDF (8 páginas) é dividido em 25 chunks, um por seção ou subseção, cada um com o título da seção-mãe, e as tabelas ficam inteiras no mesmo chunk. A busca combina BM25 em português (sem acento, com expansão de vocabulário, por exemplo "devolver" leva a "arrependimento") e embeddings do Gemini, fundidos por RRF. Se o embedding falhar por cota ou rede, o sistema cai para só BM25. O manual caberia inteiro no prompt, mas mantive o RAG porque o enunciado pede consulta sob demanda e porque o índice escala para manuais maiores. Detalhes em [docs/rag.md](docs/rag.md).
+### Modelo e provedor: Google Gemini
 
-**Prompt.** Persona informal e profissional, mensagens curtas de chat e no máximo um emoji. A "regra de ouro" é só afirmar o que as ferramentas confirmarem. O prompt também define o escopo (a loja não vende acessórios), a privacidade em pedidos e a segurança: mensagens do cliente, resultados de ferramentas e trechos do manual são tratados como **dados**, não como ordens, o que protege contra prompt injection.
+Uso o Gemini para gerar respostas (function calling) e para os embeddings, com uma única chave. Como o plano gratuito tem limite diário, escrevi um failover entre modelos (`app/core/gemini_failover.py`): erro 429 ou 404 troca de modelo, erro 5xx tenta de novo antes de trocar, e cota diária esgotada bloqueia o modelo até a virada do dia. Os nomes ficam no `.env` (`GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`), porque mudam com frequência.
 
-**Persistência.** Dois SQLites separados. Um guarda os dados da loja e é recriado pelo seed. O outro (`data/conversations.db`) guarda o histórico por `session_id` e os encaminhamentos à equipe, e por isso recriar a base da loja não apaga conversas. O histórico guarda só o texto das mensagens, não os resultados das ferramentas.
+### Retrieval das políticas: RAG híbrido
 
-**Interface: CLI e web.** O enunciado dá liberdade e pede foco no agente, então a interface é um terminal (`python -m app.agent.cli`). O agente é uma classe (`Agent.reply(session_id, texto)`) independente da interface, o que permitiu expor a mesma lógica por uma API FastAPI (`app/main.py`) sem alterar o agente.
+O PDF tem 8 páginas e é dividido em 25 chunks, um por seção ou subseção, cada um com o título da seção-mãe. As tabelas ficam inteiras no mesmo chunk. A busca combina BM25 em português (sem acento, com expansão de vocabulário, por exemplo "devolver" leva a "arrependimento") e embeddings do Gemini, fundidos por RRF. Se o embedding falhar por cota ou rede, cai para só BM25. O manual caberia inteiro no prompt, mas mantive o RAG porque o enunciado pede consulta sob demanda e porque o índice serve para manuais maiores. Detalhes em [docs/rag.md](docs/rag.md).
 
-**Tratamento dos dados.** Os CSVs viram um SQLite com tipos corretos, `specs` em JSON e colunas normalizadas (sem acento, minúsculas) para busca tolerante a erro de digitação. O seed valida os dados e registra as inconsistências em [docs/data_quality.md](docs/data_quality.md) (0 erros, 9 avisos, 3 informações).
+### Prompt
 
-**Privacidade.** Dados de pedido só aparecem com número do pedido mais e-mail ou telefone cadastrados. "Pedido não existe" e "dados não conferem" geram a mesma resposta, para não revelar quais pedidos existem. E-mail e telefone são mascarados no rastro das ferramentas.
+A persona é informal e profissional, com mensagens curtas de chat e no máximo um emoji. A regra principal é afirmar só o que as ferramentas confirmarem. O prompt também define o escopo (a loja não vende acessórios), a privacidade em pedidos e a segurança: mensagens do cliente, resultados de ferramentas e trechos do manual são tratados como dados, nunca como ordens, o que protege contra prompt injection.
 
-## Armadilhas encontradas nos dados e no manual
+### Interface
+
+Fiz três, nesta ordem. Primeiro a CLI. O agente é uma classe (`Agent.reply(session_id, texto)`) que não depende de interface, então depois expus a mesma lógica numa API FastAPI e, por cima dela, numa interface web em Next.js com AI SDK UI. O enunciado pede foco no agente, e por isso as duas últimas vieram depois do núcleo testado. A interface mostra a resposta inteira de uma vez, porque a API não faz streaming.
+
+### Persistência do histórico
+
+Dois SQLites separados. Um guarda os dados da loja e é recriado pelo seed. O outro (`data/conversations.db`) guarda o histórico por `session_id` e os encaminhamentos à equipe, então recriar a base da loja não apaga conversas. O histórico guarda só o texto das mensagens, sem os resultados das ferramentas. Na interface web, o `session_id` fica no `localStorage` e a página busca o histórico em `GET /chat/{session_id}/history` ao abrir, então a conversa volta depois de recarregar.
+
+### Tratamento dos dados
+
+Os CSVs viram um SQLite com tipos corretos, `specs` em JSON e colunas normalizadas (sem acento, minúsculas) para a busca tolerar erro de digitação. O seed valida os dados e registra as inconsistências em [docs/data_quality.md](docs/data_quality.md): 0 erros, 9 avisos e 3 informações.
+
+### Privacidade
+
+Dados de pedido só aparecem com o número do pedido mais o e-mail ou telefone cadastrados. "Pedido não existe" e "dados não conferem" geram a mesma resposta, para não revelar quais pedidos existem. E-mail e telefone são mascarados no rastro das ferramentas.
+
+## Armadilhas nos dados e no manual
 
 As decisões completas estão em [docs/premissas.md](docs/premissas.md). As principais:
 
-- **Promoção inativa:** só vale `is_active = 1`. O Takamine GD20 tem promoção inativa, então o agente informa o preço cheio e nunca promete o desconto antigo.
-- **PIX não é cumulativo:** o desconto de 5% não vale sobre preço já promocional (regra em código).
-- **Estoque e status:** produto esgotado, descontinuado ou "em breve" recebe o status real e alternativas, em vez de só olhar o estoque.
-- **Totais divergentes:** `total_brl` não bate com a soma dos itens nos pedidos 3 e 20. O agente usa o total registrado.
-- **Contatos duplicados no manual:** dois telefones e e-mail com e sem acento. O agente informa os dois telefones, cada um com seu rótulo, e usa o e-mail sem acento.
-- **Arrependimento:** a base só tem a data prevista de entrega. Ela é usada como data de recebimento e o agente avisa isso quando o prazo está próximo do limite.
+- Promoção inativa: só vale `is_active = 1`. O Takamine GD20 tem promoção inativa, então o agente informa o preço cheio e não promete o desconto antigo.
+- O desconto de 5% do PIX não vale sobre preço já promocional. A regra está em código.
+- Produto esgotado, descontinuado ou "em breve" recebe o status real e alternativas, em vez de só olhar o estoque.
+- `total_brl` não bate com a soma dos itens nos pedidos 3 e 20. O agente usa o total registrado.
+- O manual traz dois telefones e o e-mail grafado com e sem acento. O agente informa os dois telefones, cada um com seu rótulo, e usa o e-mail sem acento.
+- Para o arrependimento, a base só tem a data prevista de entrega. Uso essa data como data de recebimento e o agente avisa quando o prazo está perto do limite.
+
+## Testes e avaliação
+
+Os comandos abaixo rodam dentro de `backend/`.
+
+```bash
+python -m pytest                                   # mais de 300 testes, sem rede e sem chave
+python -m app.eval --core                          # cenários rápidos, offline (ferramentas e dados, sem LLM)
+python -m app.eval --live --core --report ../docs/avaliacao_ao_vivo.md   # com o Gemini de verdade
+python -m app.eval --list                          # lista os 30 cenários
+```
+
+No modo `--live` o modelo decide sozinho, e para cada cenário o eval confere as ferramentas chamadas, os dados retornados e o texto da resposta (por exemplo: não prometer desconto de promoção encerrada, não vazar dado de outro cliente, não revelar o prompt). O resultado da última execução está em [docs/avaliacao_ao_vivo.md](docs/avaliacao_ao_vivo.md). Como funciona o eval: [docs/avaliacao.md](docs/avaliacao.md).
 
 ## Limitações conhecidas
 
-- **Latência.** Em execuções ao vivo, alguns cenários levaram dezenas de segundos. O eval agora mostra o modelo usado e os avisos de failover para identificar a causa, mas ainda não resolvi isso por completo.
-- **Nomes dos modelos de reserva** dependem da conta do AI Studio e precisam ser conferidos no `.env`. Um nome inexistente só bloqueia aquele modelo por um tempo e o agente passa ao próximo.
-- **Limiar semântico do RAG** (`DEFAULT_MIN_SEMANTIC = 0.45`) não foi calibrado com um conjunto de perguntas. Ele só filtra trechos sem nenhum termo em comum com a pergunta.
-- **A busca híbrida** gasta uma chamada de embedding por pergunta nova (há cache por texto).
-- **O agente só consulta.** Ele não altera, cancela nem reembolsa pedidos: nesses casos encaminha à equipe.
-- **Região metropolitana** não é definida no manual. Assumi apenas Campo Grande para frete grátis. Fora dela o agente informa modalidades e prazos, sem inventar valor.
-- **Sem streaming real.** A API responde em JSON, depois que o agente termina, e a interface mostra a resposta inteira de uma vez.
-- A avaliação cobre cenários escritos por mim. Não é uma garantia contra todas as conversas reais.
+- Latência. Em execuções ao vivo, alguns cenários levaram dezenas de segundos. O eval mostra o modelo usado e os avisos de failover para identificar a causa, mas não resolvi isso por completo.
+- Os nomes dos modelos de reserva dependem da conta do AI Studio e precisam ser conferidos no `.env`. Um nome inexistente só bloqueia aquele modelo por um tempo, e o agente passa ao próximo.
+- O limiar semântico do RAG (`DEFAULT_MIN_SEMANTIC = 0.45`) não foi calibrado com perguntas rotuladas. Ele só filtra trechos sem nenhum termo em comum com a pergunta.
+- A busca híbrida gasta uma chamada de embedding por pergunta nova (há cache por texto).
+- O agente só consulta. Ele não altera, cancela nem reembolsa pedidos, e nesses casos encaminha à equipe.
+- O manual não define região metropolitana. Assumi só Campo Grande para frete grátis, e fora dela o agente informa modalidades e prazos sem inventar valor.
+- Sem streaming real: a API responde em JSON depois que o agente termina.
+- Na demo do Azure o disco é efêmero, o backend roda em uma réplica e a cota do Gemini é a do plano gratuito.
+- A avaliação cobre cenários escritos por mim. Não garante o comportamento em todas as conversas reais.
 
 ## O que faria com mais tempo
 
-- Streaming da resposta palavra por palavra na API e na interface.
+- Streaming da resposta palavra por palavra, na API e na interface.
 - Calibrar o limiar do RAG com um conjunto de perguntas rotuladas e medir a recuperação.
 - Registrar tempo e modelo de cada chamada ao LLM e investigar a latência a fundo.
 - Avaliar também com um segundo modelo como juiz, além das checagens por padrão de texto.
 - Conectar o encaminhamento à equipe a um canal real (e-mail ou WhatsApp) em vez de só registrar o protocolo.
+- Guardar o histórico num banco gerenciado, para não depender do disco do container.
 
 ## Uso de assistentes de código
 
-Usei o **Claude (Anthropic)** em conversas no chat durante todo o desenvolvimento: para discutir a arquitetura, escrever e revisar partes do código, dos testes e da documentação, e para analisar os resultados da avaliação e propor ajustes de prompt. Eu defini o problema, escolhi as decisões listadas acima, rodei os testes e a avaliação ao vivo na minha máquina e fui o responsável por aceitar, corrigir ou rejeitar cada sugestão. Um exemplo concreto: a avaliação ao vivo reprovou um cenário de segurança porque a checagem exigia uma frase exata de recusa, embora o agente não tivesse vazado nada. Corrigimos a checagem e acrescentamos ao prompt uma recusa curta e simpática.
+Usei o Claude (Anthropic) em conversas no chat durante todo o projeto: para discutir a arquitetura, escrever e revisar código, testes e documentação, e para interpretar os resultados da avaliação ao vivo. Trabalhei por etapas (dados, RAG, ferramentas, agente, avaliação, API, exemplos, Docker, interface, deploy) com um commit por etapa. Em cada uma eu pedia os arquivos, rodava os testes e a avaliação na minha máquina, devolvia os erros e as saídas e decidia o que aceitar, corrigir ou descartar.
+
+As decisões de direção foram minhas: usar o Gemini com failover entre modelos (a partir de como já tratava limite de cota em outro projeto meu), pedir a persistência do histórico na interface, definir a identidade visual e publicar a demo no Azure como bônus. Um exemplo de ajuste feito no processo: a avaliação ao vivo reprovou um cenário de segurança porque a checagem exigia uma frase exata de recusa, embora o agente não tivesse vazado nada. Corrigi a checagem e acrescentei ao prompt uma recusa curta e simpática.
 
 ## Estrutura do repositório
 
@@ -180,8 +233,10 @@ backend/
   data/raw/        CSVs originais
   data/policies/   manual de políticas (PDF)
   tests/
-Dockerfile em backend/ e docker-compose.yml na raiz
-docs/              arquitetura, premissas, qualidade dos dados, RAG e avaliação
-examples/          conversas de exemplo
+  Dockerfile
 frontend/          interface de chat em Next.js (AI SDK UI)
+docs/              arquitetura, premissas, qualidade dos dados, RAG, avaliação, API e deploy
+examples/          conversas de exemplo
+docker-compose.yml
+.github/workflows/ publicação das imagens no GHCR
 ```

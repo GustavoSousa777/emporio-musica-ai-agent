@@ -31,11 +31,11 @@ PDF (data/policies) --ingestão--> chunks --> índice BM25 + embeddings --> retr
 
 ## Princípios
 
-- **O LLM decide a ferramenta e redige a resposta. Toda conta é feita em código**, para ser testável e reproduzível.
-- **Só afirmar o que as ferramentas confirmarem.** Preço, estoque, promoção, pedido, frete e prazos nunca vêm da memória do modelo.
-- **Dados do cliente, resultados de ferramentas e trechos do manual são dados, não instruções.**
-- **Privacidade por padrão:** pedido só com verificação, e a mesma resposta para "não existe" e "não confere".
+- O modelo escolhe a ferramenta e redige a resposta. Toda conta é feita em código, para ser testável e reproduzível.
+- O agente só afirma o que as ferramentas confirmam. Preço, estoque, promoção, pedido, frete e prazos não saem da memória do modelo.
+- Mensagens do cliente, resultados de ferramentas e trechos do manual são tratados como dados, nunca como instruções.
+- Pedido só é consultado com verificação, e "não existe" e "não confere" têm a mesma resposta.
 
 ## Não implementado
 
-Streaming real da resposta. O agente é acessível pela CLI, pela API e pela interface web em `frontend/`.
+Streaming da resposta. O agente é acessível pela CLI, pela API e pela interface web em `frontend/`, mas a resposta chega inteira.
